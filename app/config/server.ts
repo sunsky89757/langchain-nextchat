@@ -21,6 +21,7 @@ declare global {
       ENABLE_BALANCE_QUERY?: string; // allow user to query balance or not
       DISABLE_FAST_LINK?: string; // disallow parse settings from url or not
       CUSTOM_MODELS?: string; // to control custom models
+      DEFAULT_MODEL?: string; // to cnntrol default model in every new chat window
 
       // azure only
       AZURE_URL?: string; // https://{azure-url}/openai/deployments
@@ -59,16 +60,19 @@ export const getServerSideConfig = () => {
 
   const disableGPT4 = !!process.env.DISABLE_GPT4;
   let customModels = process.env.CUSTOM_MODELS ?? "";
+  let defaultModel = process.env.DEFAULT_MODEL ?? "";
 
   if (disableGPT4) {
     if (customModels) customModels += ",";
     customModels += DEFAULT_MODELS.filter((m) => m.name.startsWith("gpt-4"))
       .map((m) => "-" + m.name)
       .join(",");
+    if (defaultModel.startsWith("gpt-4")) defaultModel = "";
   }
 
   const isAzure = !!process.env.AZURE_URL;
   const isGoogle = !!process.env.GOOGLE_API_KEY;
+  const isAnthropic = !!process.env.ANTHROPIC_API_KEY;
 
   const apiKeyEnvVar = process.env.OPENAI_API_KEY ?? "";
   const apiKeys = apiKeyEnvVar.split(",").map((v) => v.trim());
@@ -76,6 +80,10 @@ export const getServerSideConfig = () => {
   const apiKey = apiKeys[randomIndex];
   console.log(
     `[Server Config] using ${randomIndex + 1} of ${apiKeys.length} api key`,
+  );
+
+  const whiteWebDevEndpoints = (process.env.WHITE_WEBDEV_ENDPOINTS ?? "").split(
+    ",",
   );
 
   return {
@@ -92,6 +100,11 @@ export const getServerSideConfig = () => {
     googleApiKey: process.env.GOOGLE_API_KEY,
     googleUrl: process.env.GEMINI_BASE_URL ?? process.env.GOOGLE_URL,
 
+    isAnthropic,
+    anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+    anthropicApiVersion: process.env.ANTHROPIC_API_VERSION,
+    anthropicUrl: process.env.ANTHROPIC_URL,
+
     gtmId: process.env.GTM_ID,
 
     needCode: ACCESS_CODES.size > 0,
@@ -106,10 +119,19 @@ export const getServerSideConfig = () => {
     hideBalanceQuery: !process.env.ENABLE_BALANCE_QUERY,
     disableFastLink: !!process.env.DISABLE_FAST_LINK,
     customModels,
+    defaultModel,
+    whiteWebDevEndpoints,
 
     isStoreFileToLocal:
       !!process.env.NEXT_PUBLIC_ENABLE_NODEJS_PLUGIN &&
       !process.env.R2_ACCOUNT_ID &&
       !process.env.S3_ENDPOINT,
+
+    isEnableRAG: !!process.env.ENABLE_RAG,
+    ragEmbeddingModel:
+      process.env.RAG_EMBEDDING_MODEL ?? "text-embedding-3-large",
+    ragChunkSize: process.env.RAG_CHUNK_SIZE ?? "2000",
+    ragChunkOverlap: process.env.RAG_CHUNK_OVERLAP ?? "200",
+    ragReturnCount: process.env.RAG_RETURN_COUNT ?? "4",
   };
 };
